@@ -12,6 +12,7 @@ import {
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import SideHUD from './SideHUD';
+import ErrorBoundary from './ErrorBoundary';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -42,16 +43,37 @@ export default function Layout() {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
-  // Expand HUD on large screens by default
+  // Expand HUD on ultra-wide screens by default (>= 1536px), keep closed on laptops so content has full space
   useEffect(() => {
-    if (window.innerWidth >= 1280) {
+    if (window.innerWidth >= 1536) {
       setIsHudOpen(true);
+    } else {
+      setIsHudOpen(false);
     }
   }, []);
 
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const isAdmin = user?.role === 'Admin';
+  const companyStr = localStorage.getItem('company');
+  const company = companyStr ? JSON.parse(companyStr) : null;
+  const isAdmin = user?.role === 'Admin' || user?.role === 'CompanyAdmin';
+
+  const userRole = user?.role || 'Employee';
+  let activeModules: string[] = ['crm', 'pos', 'hem', 'erp', 'ai-whatsapp'];
+  if (company?.activeModules) {
+    try {
+      activeModules = Array.isArray(company.activeModules) 
+        ? company.activeModules 
+        : JSON.parse(company.activeModules);
+    } catch (e) {
+      activeModules = ['crm', 'pos'];
+    }
+  }
+
+  const hasModule = (modId: string) => {
+    if (!company) return true;
+    return activeModules.includes(modId);
+  };
 
   const navItems = [
     { name: 'Unified Dashboard', href: '/', icon: LayoutDashboard },
@@ -356,309 +378,322 @@ export default function Layout() {
     ? [] 
     : combinedSearchIndex.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.category.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const renderNavLinks = () => (
-    <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-      {navItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-blue-50 text-blue-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-blue-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
+  const renderNavLinks = () => {
+    // 1. DEDICATED WORKSPACES PER ROLE
+    if (userRole === 'Cashier') {
+      return (
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          <div className="pt-2 pb-2 px-3">
+            <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Cashier Billing Station
+            </span>
+          </div>
+          {commerceNavItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                location.pathname === item.href 
+                  ? "bg-teal-50 text-teal-700 font-semibold shadow-xs" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-teal-600" : "text-gray-400")} />
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+      );
+    }
 
-      {/* TIER 1: FRONT OFFICE (CRM, SALES & SERVICE) */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-purple-700 uppercase tracking-wider">Front Office (CRM & Sales)</p>
-          {location.pathname.startsWith('/crm') && (
-            <span className="text-[9px] bg-purple-100 text-purple-800 font-extrabold px-1.5 py-0.5 rounded tracking-wider">ACTIVE</span>
-          )}
+    if (userRole === 'Sales') {
+      return (
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          <div className="pt-2 pb-2 px-3">
+            <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Sales Rep Pipeline
+            </span>
+          </div>
+          {crmNavItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                location.pathname === item.href 
+                  ? "bg-purple-50 text-purple-700 font-semibold shadow-xs" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-purple-600" : "text-gray-400")} />
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+      );
+    }
+
+    if (userRole === 'HR') {
+      return (
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          <div className="pt-2 pb-2 px-3">
+            <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              HR & Workforce Portal
+            </span>
+          </div>
+          {hrNavItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                location.pathname === item.href 
+                  ? "bg-blue-50 text-blue-700 font-semibold shadow-xs" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-blue-600" : "text-gray-400")} />
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+      );
+    }
+
+    if (userRole === 'Employee') {
+      return (
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          <div className="pt-2 pb-2 px-3">
+            <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              My Employee Self-Service
+            </span>
+          </div>
+          {dashboardNavItems.slice(0, 1).map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                location.pathname === item.href 
+                  ? "bg-amber-50 text-amber-700 font-semibold shadow-xs" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-amber-600" : "text-gray-400")} />
+              {item.name}
+            </Link>
+          ))}
+          <div className="pt-4 pb-1 px-3">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Workplace Tools</p>
+          </div>
+          {navItems.slice(0, 5).map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                location.pathname === item.href 
+                  ? "bg-blue-50 text-blue-700 font-semibold shadow-xs" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-blue-600" : "text-gray-400")} />
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+      );
+    }
+
+    // 2. COMPANY OWNER & ADMIN (SHOW ONLY PURCHASED MODULES)
+    return (
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        {isAdmin && (
+          <div className="mb-3 pb-2 border-b border-gray-100">
+            <Link
+              to="/os/staff"
+              className={cn(
+                "flex items-center px-3 py-2.5 rounded-xl text-sm font-bold transition-all shadow-xs",
+                location.pathname === '/os/staff'
+                  ? "bg-purple-600 text-white shadow-purple-600/20"
+                  : "bg-purple-50 text-purple-700 hover:bg-purple-100"
+              )}
+            >
+              <Users className="mr-3 h-5 w-5" />
+              <span>Staff & Team Access</span>
+            </Link>
+          </div>
+        )}
+
+        {navItems.map((item) => (
+          <Link
+            key={item.name}
+            to={item.href}
+            className={cn(
+              "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              location.pathname === item.href 
+                ? "bg-blue-50 text-blue-700 font-semibold shadow-xs" 
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-blue-600" : "text-gray-400")} />
+            {item.name}
+          </Link>
+        ))}
+
+        {/* TIER 1: FRONT OFFICE (CRM, SALES & SERVICE) - Gated by 'crm' */}
+        {hasModule('crm') && (
+          <>
+            <div className="pt-4 pb-1">
+              <div className="flex items-center justify-between px-3">
+                <p className="text-xs font-bold text-purple-700 uppercase tracking-wider">Front Office (CRM & Sales)</p>
+                {location.pathname.startsWith('/crm') && (
+                  <span className="text-[9px] bg-purple-100 text-purple-800 font-extrabold px-1.5 py-0.5 rounded tracking-wider">ACTIVE</span>
+                )}
+              </div>
+            </div>
+            {crmNavItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  location.pathname === item.href 
+                    ? "bg-purple-50 text-purple-700 font-semibold shadow-xs" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-purple-600" : "text-gray-400")} />
+                {item.name}
+              </Link>
+            ))}
+          </>
+        )}
+
+        {/* TIER 2 & 3: OPERATIONS & FINANCE - Gated by 'erp' */}
+        {hasModule('erp') && (
+          <>
+            <div className="pt-4 pb-1">
+              <div className="flex items-center justify-between px-3">
+                <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Operations (Supply Chain)</p>
+              </div>
+            </div>
+            {erpNavItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  location.pathname === item.href 
+                    ? "bg-indigo-50 text-indigo-700 font-semibold shadow-xs" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-indigo-600" : "text-gray-400")} />
+                {item.name}
+              </Link>
+            ))}
+
+            <div className="pt-4 pb-1">
+              <div className="flex items-center justify-between px-3">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Back Office & Finance</p>
+              </div>
+            </div>
+            {financeNavItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  location.pathname === item.href 
+                    ? "bg-emerald-50 text-emerald-700 font-semibold shadow-xs" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-emerald-600" : "text-gray-400")} />
+                {item.name}
+              </Link>
+            ))}
+          </>
+        )}
+
+        {/* TIER 4: PEOPLE LAYER (HRM) - Gated by 'hem' */}
+        {hasModule('hem') && (
+          <>
+            <div className="pt-4 pb-1">
+              <div className="flex items-center justify-between px-3">
+                <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">People Layer (HRM)</p>
+              </div>
+            </div>
+            {hrNavItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  location.pathname === item.href 
+                    ? "bg-blue-50 text-blue-700 font-semibold shadow-xs" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-blue-600" : "text-gray-400")} />
+                {item.name}
+              </Link>
+            ))}
+          </>
+        )}
+
+        {/* TIER 7: RETAIL & COMMERCE (POS) - Gated by 'pos' */}
+        {hasModule('pos') && (
+          <>
+            <div className="pt-4 pb-1">
+              <div className="flex items-center justify-between px-3">
+                <p className="text-xs font-bold text-teal-700 uppercase tracking-wider">Retail & Commerce</p>
+              </div>
+            </div>
+            {commerceNavItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  location.pathname === item.href 
+                    ? "bg-teal-50 text-teal-700 font-semibold shadow-xs" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-teal-600" : "text-gray-400")} />
+                {item.name}
+              </Link>
+            ))}
+          </>
+        )}
+
+        {/* ROLE PORTALS */}
+        <div className="pt-4 pb-1">
+          <div className="flex items-center justify-between px-3">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">Role Portals</p>
+          </div>
         </div>
-      </div>
-      {crmNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-purple-50 text-purple-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-purple-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-      {/* TIER 2: OPERATIONS (SUPPLY CHAIN & ASSETS) */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Operations (Supply Chain)</p>
-          {location.pathname.startsWith('/erp') && !['/erp/finance', '/erp/invoicing'].includes(location.pathname) && (
-            <span className="text-[9px] bg-indigo-100 text-indigo-800 font-extrabold px-1.5 py-0.5 rounded tracking-wider">ACTIVE</span>
-          )}
-        </div>
-      </div>
-      {erpNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-indigo-50 text-indigo-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-indigo-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-      {/* TIER 3: BACK OFFICE & FINANCE */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Back Office & Finance</p>
-          {(location.pathname === '/erp/invoicing' || location.pathname === '/erp/finance' || location.pathname === '/hem/payroll') && (
-            <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded tracking-wider">ACTIVE</span>
-          )}
-        </div>
-      </div>
-      {financeNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-emerald-50 text-emerald-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-emerald-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-      {/* TIER 4: PEOPLE LAYER (HRM & WORKFORCE) */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">People Layer (HRM)</p>
-          {(location.pathname.startsWith('/hr') || location.pathname.startsWith('/hem') || location.pathname.startsWith('/recruitment')) && location.pathname !== '/hem/payroll' && (
-            <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded tracking-wider">ACTIVE</span>
-          )}
-        </div>
-      </div>
-      {hrNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-blue-50 text-blue-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-blue-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-            {/* TIER 5: MARKETING & WEB */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-rose-700 uppercase tracking-wider">Marketing & Web Presence</p>
-        </div>
-      </div>
-      {marketingNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-rose-50 text-rose-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-rose-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-      {/* TIER 6: OFFICE & PRODUCTIVITY */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">Office & Productivity</p>
-        </div>
-      </div>
-      {officeNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-amber-50 text-amber-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-amber-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-
-            {/* TIER 7: RETAIL & COMMERCE */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-teal-700 uppercase tracking-wider">Retail & Commerce</p>
-        </div>
-      </div>
-      {commerceNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-teal-50 text-teal-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-teal-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-
-            {/* TIER 8: DEVELOPER & AUTOMATION */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Dev & Automation</p>
-        </div>
-      </div>
-      {developerNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-slate-800 text-white font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-slate-300" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-
-            {/* TIER 9: IT & SECURITY */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-cyan-700 uppercase tracking-wider">IT Infrastructure</p>
-        </div>
-      </div>
-      {itNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-cyan-50 text-cyan-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-cyan-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-
-            {/* TIER 10: CUSTOMER SUCCESS */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-pink-700 uppercase tracking-wider">Customer Success</p>
-        </div>
-      </div>
-      {successNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-pink-50 text-pink-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-pink-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-      {/* TIER 11: SPECIALIZED VERTICALS */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Specialized Verticals</p>
-        </div>
-      </div>
-      {specializedNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-emerald-50 text-emerald-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-emerald-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-
-
-      {/* ROLE PORTALS */}
-      <div className="pt-4 pb-1">
-        <div className="flex items-center justify-between px-3">
-          <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">Role Portals</p>
-          {location.pathname.startsWith('/dashboards') && (
-            <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded tracking-wider">ACTIVE</span>
-          )}
-        </div>
-      </div>
-      {dashboardNavItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.href}
-          className={cn(
-            "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-            location.pathname === item.href 
-              ? "bg-amber-50 text-amber-700 font-semibold shadow-xs" 
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-amber-600" : "text-gray-400")} />
-          {item.name}
-        </Link>
-      ))}
-    </nav>
-  );
+        {dashboardNavItems.map((item) => (
+          <Link
+            key={item.name}
+            to={item.href}
+            className={cn(
+              "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              location.pathname === item.href 
+                ? "bg-amber-50 text-amber-700 font-semibold shadow-xs" 
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <item.icon className={cn("mr-3 h-5 w-5", location.pathname === item.href ? "text-amber-600" : "text-gray-400")} />
+            {item.name}
+          </Link>
+        ))}
+      </nav>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans relative overflow-hidden">
@@ -677,8 +712,8 @@ export default function Layout() {
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
-          <span className="text-lg font-extrabold text-blue-600 flex items-center gap-2 tracking-tight">
-            <span>Antigravity ERP</span>
+          <span className="text-xl font-black text-purple-700 flex items-center gap-2 tracking-tight">
+            <span>Athena<span className="text-blue-600">.</span></span>
           </span>
           <div className="flex items-center gap-2">
             <span className="text-[10px] bg-blue-100 text-blue-800 font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider">
@@ -697,23 +732,29 @@ export default function Layout() {
 
         <div className="p-4 border-t border-gray-200 flex items-center justify-between">
           <div className="flex items-center">
-            <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm uppercase">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm uppercase">
               {user?.name ? user.name.substring(0, 2) : 'U'}
             </div>
-            <div className="ml-3 truncate max-w-[120px]">
-              <p className="text-sm font-semibold text-gray-800 truncate" title={user?.name || 'User'}>
+            <div className="ml-3 truncate max-w-[125px]">
+              <p className="text-sm font-bold text-gray-800 truncate" title={user?.name || 'User'}>
                 {user?.name || 'User'}
               </p>
-              <p className="text-[10px] text-gray-500 truncate" title={user?.role || 'Employee'}>
-                {user?.role || 'Employee'}
-              </p>
+              <div className="flex items-center gap-1 text-[10px] text-gray-500 truncate">
+                <span className="font-semibold text-purple-700">{user?.role || 'Employee'}</span>
+                {company?.companyCode && (
+                  <span className="bg-purple-100 text-purple-800 px-1 rounded text-[9px] font-mono font-bold">
+                    {company.companyCode}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button 
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('user');
-              window.location.href = '/login';
+              localStorage.removeItem('company');
+              window.location.href = '/welcome';
             }}
             className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
             title="Log Out"
@@ -724,10 +765,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className={cn(
-        "flex-1 flex flex-col overflow-hidden transition-all duration-300 min-w-0",
-        isHudOpen ? "xl:mr-80" : "mr-0"
-      )}>
+      <main className="flex-1 flex flex-col overflow-hidden transition-all duration-300 min-w-0">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shadow-xs z-10">
           <div className="flex items-center space-x-3">
             <button
@@ -744,7 +782,7 @@ export default function Layout() {
                financeNavItems.find((i: any) => i.href === location.pathname)?.name ||
                hrNavItems.find((i: any) => i.href === location.pathname)?.name ||
                dashboardNavItems.find((i: any) => i.href === location.pathname)?.name ||
-               'Antigravity ERP'}
+               'Athena'}
             </h1>
           </div>
 
@@ -811,7 +849,9 @@ export default function Layout() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/50">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
 

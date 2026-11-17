@@ -128,30 +128,55 @@ import HRReports from './pages/hr/HRReports';
 import LabourLawReports from './pages/hr/LabourLawReports';
 import LetterMailMerge from './pages/hr/LetterMailMerge';
 import CompanyPoliciesForms from './pages/hr/CompanyPoliciesForms';
+import PublicLanding from './pages/public/PublicLanding';
+import StaffManagement from './pages/os/StaffManagement';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const token = localStorage.getItem('token');
   const userStr = localStorage.getItem('user');
   
   if (!token || !userStr) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/welcome" />;
   }
   
   const user = JSON.parse(userStr);
+  const isPrivileged = user.role === 'Admin' || user.role === 'CompanyAdmin' || user.role === 'Manager';
   
-  if (adminOnly && user.role !== 'Admin') {
-    return <Navigate to="/" />;
+  if (adminOnly && !isPrivileged) {
+    if (user.role === 'Cashier') return <Navigate to="/pos" replace />;
+    if (user.role === 'Sales') return <Navigate to="/crm/leads" replace />;
+    if (user.role === 'HR') return <Navigate to="/dashboards/hr" replace />;
+    return <Navigate to="/dashboards/employee" replace />;
   }
 
   return <>{children}</>;
 }
 
+function RoleBasedIndex() {
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const role = user?.role || 'Employee';
+
+  if (role === 'Cashier') return <Navigate to="/pos" replace />;
+  if (role === 'Sales') return <Navigate to="/crm/leads" replace />;
+  if (role === 'HR') return <Navigate to="/dashboards/hr" replace />;
+  if (role === 'Employee') return <Navigate to="/dashboards/employee" replace />;
+
+  return <Dashboard />;
+}
+
 import ClientCall from './pages/ClientCall';
+import AppleLoader from './components/AppleLoader';
+import VendorCommandCenter from './pages/superadmin/VendorCommandCenter';
 
 function App() {
   return (
     <Router>
+      <AppleLoader duration={1100} />
       <Routes>
+        <Route path="/superadmin" element={<VendorCommandCenter />} />
+        <Route path="/admin/tenants" element={<VendorCommandCenter />} />
+        <Route path="/welcome" element={<PublicLanding />} />
         <Route path="/login" element={<Login />} />
         <Route path="/client-register" element={<ClientRegister />} />
         <Route path="/client-portal" element={<ClientPortal />} />
@@ -160,7 +185,7 @@ function App() {
         
         {/* Protected Routes */}
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<RoleBasedIndex />} />
           <Route path="directory" element={<Directory />} />
           <Route path="chat" element={<Chat />} />
           <Route path="mail" element={<Mail />} />
@@ -244,8 +269,9 @@ function App() {
 
 
           {/* Business OS Routes */}
-          <Route path="os" element={<OwnerDashboard />} />
-          <Route path="os/tasks" element={<Tasks />} />
+          <Route path="os" element={<ProtectedRoute adminOnly><OwnerDashboard /></ProtectedRoute>} />
+          <Route path="os/staff" element={<ProtectedRoute adminOnly><StaffManagement /></ProtectedRoute>} />
+          <Route path="os/tasks" element={<ProtectedRoute adminOnly><Tasks /></ProtectedRoute>} />
           <Route path="os/recruitment" element={<Navigate to="/recruitment" replace />} />
           <Route path="os/service" element={<Navigate to="/crm/tickets" replace />} />
           <Route path="os/finance" element={<Navigate to="/erp/finance" replace />} />

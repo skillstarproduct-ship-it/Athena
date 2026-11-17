@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { Mail as MailIcon, Inbox, Send, Archive, Trash2, Star, Clock, FileText, AlertCircle, Search, Edit3, MoreVertical, Paperclip, Reply, Forward } from 'lucide-react';
+import { 
+  Mail as MailIcon, Inbox, Send, Archive, Trash2, Star, Clock, 
+  FileText, AlertCircle, Search, Edit3, MoreVertical, Paperclip, 
+  Reply, Forward, ChevronLeft, PanelLeftClose, PanelLeft, ArrowLeft
+} from 'lucide-react';
 
 export default function Mail() {
   const [activeFolder, setActiveFolder] = useState('inbox');
   const [selectedMail, setSelectedMail] = useState<number | null>(1);
+  const [isFolderExpanded, setIsFolderExpanded] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('detail');
 
   const folders = [
     { id: 'inbox', name: 'Inbox', icon: Inbox, count: 24 },
@@ -69,140 +75,194 @@ export default function Mail() {
   const activeEmailData = emails.find(e => e.id === selectedMail);
 
   return (
-    <div className="h-[calc(100vh-4rem)] bg-white flex overflow-hidden rounded-2xl shadow-sm border border-gray-200">
+    <div className="h-[calc(100vh-4.5rem)] bg-white flex overflow-hidden rounded-2xl shadow-sm border border-gray-200 min-w-0">
       
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col hidden md:flex">
-        <div className="p-4">
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors">
-            <Edit3 className="w-5 h-5" />
-            Compose
+      {/* 1. Folders Pane (Collapsible: icon bar w-16 or expanded w-52) */}
+      <div className={`bg-gray-50/80 border-r border-gray-200 flex flex-col shrink-0 transition-all duration-200 hidden md:flex ${
+        isFolderExpanded ? 'w-52' : 'w-16'
+      }`}>
+        <div className="p-3 border-b border-gray-200/60 flex items-center justify-between">
+          <button 
+            onClick={() => setIsFolderExpanded(!isFolderExpanded)}
+            className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 rounded-xl transition-colors mx-auto cursor-pointer"
+            title={isFolderExpanded ? "Collapse folders" : "Expand folders"}
+          >
+            {isFolderExpanded ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+          </button>
+        </div>
+
+        <div className="p-2.5">
+          <button 
+            className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer ${
+              isFolderExpanded ? 'py-2.5 px-3 text-sm' : 'p-2.5 aspect-square'
+            }`}
+            title="Compose New Email"
+          >
+            <Edit3 className="w-4 h-4 shrink-0" />
+            {isFolderExpanded && <span className="truncate">Compose</span>}
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-          {folders.map(folder => (
-            <button
-              key={folder.id}
-              onClick={() => setActiveFolder(folder.id)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                activeFolder === folder.id 
-                  ? 'bg-blue-100/50 text-blue-700 font-medium' 
-                  : 'text-gray-600 hover:bg-gray-200/50'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <folder.icon className={`w-4 h-4 ${activeFolder === folder.id ? 'text-blue-600' : 'text-gray-400'}`} />
-                {folder.name}
-              </div>
-              {folder.count > 0 && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  activeFolder === folder.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {folder.count}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
+          {folders.map(folder => {
+            const isActive = activeFolder === folder.id;
+            return (
+              <button
+                key={folder.id}
+                onClick={() => setActiveFolder(folder.id)}
+                className={`w-full flex items-center rounded-xl transition-all cursor-pointer ${
+                  isFolderExpanded 
+                    ? 'justify-between px-3 py-2 text-xs font-semibold' 
+                    : 'justify-center p-2.5'
+                } ${
+                  isActive 
+                    ? 'bg-blue-100/70 text-blue-700 font-bold' 
+                    : 'text-gray-600 hover:bg-gray-200/50'
+                }`}
+                title={folder.name}
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <folder.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                  {isFolderExpanded && <span className="truncate">{folder.name}</span>}
+                </div>
+                {isFolderExpanded && folder.count > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                    isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {folder.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Email List */}
-      <div className="w-full md:w-[350px] lg:w-[400px] border-r border-gray-200 flex flex-col bg-white">
-        <div className="p-4 border-b border-gray-200 flex flex-col gap-4">
+      {/* 2. Email List Column */}
+      <div className={`w-full sm:w-64 md:w-72 lg:w-72 shrink-0 border-r border-gray-200 flex flex-col bg-white min-w-0 ${
+        mobileView === 'detail' ? 'hidden sm:flex' : 'flex'
+      }`}>
+        <div className="p-3 border-b border-gray-200">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
             <input 
               type="text" 
-              placeholder="Search all emails..." 
-              className="w-full pl-9 pr-4 py-2 bg-gray-100 border-transparent rounded-xl text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+              placeholder="Search emails..." 
+              className="w-full pl-9 pr-3 py-1.5 bg-gray-100 border-transparent rounded-xl text-xs sm:text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {emails.map(email => (
-            <div 
-              key={email.id}
-              onClick={() => setSelectedMail(email.id)}
-              className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 ${
-                selectedMail === email.id ? 'bg-blue-50/50' : ''
-              }`}
-            >
-              <div className="flex justify-between items-start mb-1">
-                <span className={`text-sm ${email.isUnread ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
-                  {email.sender}
-                </span>
-                <span className={`text-xs ${email.isUnread ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
-                  {email.time}
-                </span>
+        
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {emails.map(email => {
+            const isSelected = selectedMail === email.id;
+            return (
+              <div 
+                key={email.id}
+                onClick={() => {
+                  setSelectedMail(email.id);
+                  setMobileView('detail');
+                }}
+                className={`p-3.5 cursor-pointer transition-colors hover:bg-gray-50/80 ${
+                  isSelected ? 'bg-blue-50/70 border-l-4 border-l-blue-600' : ''
+                }`}
+              >
+                <div className="flex justify-between items-start mb-1 gap-1.5">
+                  <span className={`text-xs sm:text-sm truncate ${email.isUnread ? 'font-black text-gray-900' : 'font-semibold text-gray-700'}`}>
+                    {email.sender}
+                  </span>
+                  <span className={`text-[11px] shrink-0 ${email.isUnread ? 'font-bold text-blue-600' : 'text-gray-400'}`}>
+                    {email.time}
+                  </span>
+                </div>
+                <div className={`text-xs mb-1 truncate ${email.isUnread ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
+                  {email.subject}
+                </div>
+                <div className="text-[11px] text-gray-500 line-clamp-2">
+                  {email.preview}
+                </div>
               </div>
-              <div className={`text-sm mb-1 truncate ${email.isUnread ? 'font-bold text-gray-900' : 'text-gray-800'}`}>
-                {email.subject}
-              </div>
-              <div className="text-xs text-gray-500 line-clamp-2">
-                {email.preview}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Email Body Pane */}
-      <div className="flex-1 flex flex-col bg-white hidden sm:flex">
+      {/* 3. Email Body Reading Pane */}
+      <div className={`flex-1 min-w-0 flex flex-col bg-white overflow-hidden ${
+        mobileView === 'list' ? 'hidden sm:flex' : 'flex'
+      }`}>
         {activeEmailData ? (
-          <>
-            <div className="p-6 border-b border-gray-200 flex justify-between items-start">
-              <div className="flex flex-col gap-4">
-                <h2 className="text-2xl font-bold text-gray-900">{activeEmailData.subject}</h2>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
-                    {activeEmailData.sender.charAt(0)}
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            {/* Top Toolbar (Back on mobile, Actions on right) */}
+            <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between gap-2 shrink-0 bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setMobileView('list')}
+                  className="sm:hidden p-1.5 rounded-lg text-gray-600 hover:bg-gray-200 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Emails</span>
+                </button>
+                <span className="text-xs text-gray-400 hidden sm:inline font-mono">Invoice Receipt</span>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <button className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 rounded-lg transition-colors cursor-pointer" title="Archive">
+                  <Archive className="w-4 h-4" />
+                </button>
+                <button className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Delete">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 rounded-lg transition-colors cursor-pointer" title="More Actions">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Email Header */}
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col gap-3 shrink-0">
+              <h1 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 leading-snug break-words">
+                {activeEmailData.subject}
+              </h1>
+
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-sm shadow-sm shrink-0">
+                  {activeEmailData.sender.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-bold text-gray-900 text-sm">{activeEmailData.sender}</span>
+                    <span className="text-xs text-gray-500 font-mono">&lt;{activeEmailData.email}&gt;</span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">{activeEmailData.sender}</span>
-                      <span className="text-xs text-gray-500">&lt;{activeEmailData.email}&gt;</span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      to me • {activeEmailData.date} at {activeEmailData.time}
-                    </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    to me • {activeEmailData.date} at {activeEmailData.time}
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                  <Archive className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
-              </div>
             </div>
             
-            <div className="p-6 flex-1 overflow-y-auto">
-              <div className="whitespace-pre-wrap text-gray-800 text-sm leading-relaxed max-w-3xl">
+            {/* Email Body Content */}
+            <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-w-0">
+              <div className="whitespace-pre-wrap text-gray-800 text-xs sm:text-sm leading-relaxed max-w-2xl break-words font-sans">
                 {activeEmailData.body}
               </div>
               
-              <div className="mt-8 flex gap-3">
-                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
-                  <Reply className="w-4 h-4" />
-                  Reply
+              <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap gap-2.5">
+                <button className="px-4 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs">
+                  <Reply className="w-3.5 h-3.5" />
+                  <span>Reply</span>
                 </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
-                  <Forward className="w-4 h-4" />
-                  Forward
+                <button className="px-4 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs">
+                  <Forward className="w-3.5 h-3.5" />
+                  <span>Forward</span>
                 </button>
               </div>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            <MailIcon className="w-16 h-16 mb-4 opacity-20" />
-            <p>Select an email to read</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-6 text-center">
+            <MailIcon className="w-16 h-16 mb-3 opacity-20" />
+            <p className="text-sm font-semibold text-gray-500">Select an email from the list to read</p>
           </div>
         )}
       </div>

@@ -21,6 +21,12 @@ export default function OSNavigation() {
       desc: 'Executive Pulse' 
     },
     { 
+      name: 'Staff & Team Access', 
+      href: '/os/staff', 
+      icon: Briefcase,
+      desc: 'Employee IDs & Roles' 
+    },
+    { 
       name: 'Operations & Tasks', 
       href: '/os/tasks', 
       icon: CheckSquare,
@@ -55,33 +61,33 @@ export default function OSNavigation() {
   return (
     <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs mb-6 overflow-hidden">
       {/* Top Banner / Breadcrumb Bar */}
-      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-indigo-950 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-rose-500/20 rounded-xl border border-rose-500/30 shadow-xs">
+      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-indigo-950 text-white px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2.5 bg-rose-500/20 rounded-xl border border-rose-500/30 shadow-xs shrink-0">
             <Zap className="w-5 h-5 text-rose-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-rose-300 tracking-wide uppercase">Enterprise Suite</span>
               <span className="text-[10px] bg-rose-500/30 text-rose-200 px-2 py-0.5 rounded-full font-bold border border-rose-400/30">
                 BUSINESS OS
               </span>
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Executive Operations & Operating System</h2>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">Executive Operations & Operating System</h2>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             to="/os/tasks"
-            className="text-xs font-bold bg-white text-rose-900 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+            className="text-xs font-bold bg-white text-rose-900 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs shrink-0"
           >
             <span>Task Board</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <Link
             to="/erp/finance"
-            className="text-xs font-semibold bg-rose-900/60 hover:bg-rose-800 text-rose-100 border border-rose-500/30 px-3 py-1.5 rounded-lg transition-colors"
+            className="text-xs font-semibold bg-rose-900/60 hover:bg-rose-800 text-rose-100 border border-rose-500/30 px-3 py-1.5 rounded-lg transition-colors shrink-0"
           >
             Ledger
           </Link>
@@ -89,7 +95,7 @@ export default function OSNavigation() {
       </div>
 
       {/* Navigation Tab Bar */}
-      <div className="flex items-center gap-1 p-2 bg-gray-50/70 border-t border-gray-100 overflow-x-auto">
+      <div className="flex items-center gap-1 p-2 bg-gray-50/70 border-t border-gray-100 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {osTabs.map((tab) => {
           const isActive = location.pathname === tab.href;
           return (

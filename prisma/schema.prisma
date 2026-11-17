@@ -9,6 +9,9 @@ datasource db {
 
 model User {
   id                String               @id @default(uuid())
+  companyId         String?
+  company           Company?             @relation(fields: [companyId], references: [id])
+  employeeId        String?
   username          String?              @unique
   email             String               @unique
   password          String
@@ -562,3 +565,27 @@ model WhatsAppAccount {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+// --- MULTI-TENANT SAAS COMPANIES & SUBSCRIPTIONS ---
+model Company {
+  id              String         @id @default(uuid())
+  companyCode     String         @unique // e.g. "ABCRETAIL", "TECHCORP"
+  name            String
+  ownerName       String
+  ownerEmail      String         @unique
+  ownerPhone      String?
+  status          String         @default("ACTIVE") // ACTIVE, SUSPENDED, EXPIRED
+  createdAt       DateTime       @default(now())
+  
+  // Subscription & Gating Details
+  planType        String         @default("CUSTOM") // STARTER, GROWTH, ENTERPRISE, CUSTOM
+  activeModules   String         @default("[\"crm\"]") // JSON string: ["crm", "pos", "hem", "erp", "ai-whatsapp"]
+  durationMonths  Int            @default(1)
+  validUntil      DateTime
+  maxUsersAllowed Int            @default(10)
+  amountPaid      Float          @default(0)
+  
+  // Relations
+  users           User[]
+}
+

@@ -1,9 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Check, MessageSquare, ChevronRight, LayoutGrid, Monitor } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const role = user.role;
+        if (role === 'Cashier') navigate('/pos', { replace: true });
+        else if (role === 'Sales') navigate('/crm/leads', { replace: true });
+        else if (role === 'HR') navigate('/dashboards/hr', { replace: true });
+        else if (role === 'Employee') navigate('/dashboards/employee', { replace: true });
+        else navigate('/os', { replace: true });
+      } catch (e) {}
+    }
+  }, [navigate]);
   // 'main' = Split Screen (Image 1), 'secondary' = Dark Card (Image 2)
   const [view, setView] = useState<'main' | 'secondary'>('main');
   const [step, setStep] = useState<'login' | 'otp'>('login');
@@ -21,6 +37,22 @@ export default function Login() {
     e.preventDefault();
     setError(''); setMsg('');
     try {
+      // 1. Try standard Athena OS user / admin authentication
+      const authRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password })
+      });
+
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        localStorage.setItem('token', authData.token);
+        localStorage.setItem('user', JSON.stringify(authData.user));
+        navigate('/');
+        return;
+      }
+
+      // 2. If not standard user, fallback to company client portal flow
       const payload = view === 'secondary'
         ? { email, subUsername, password } // Staff/Sub-user uses secondary
         : { email, password };             // Admin uses main
@@ -31,7 +63,11 @@ export default function Login() {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Login failed'); return; }
+      if (!res.ok) { 
+        const authErr = await authRes.json().catch(() => null);
+        setError(authErr?.error || data.error || 'Login failed'); 
+        return; 
+      }
       
       setStep('otp');
       setMsg(data.message + (data.fallbackOtp ? ' (Test OTP: ' + data.fallbackOtp + ')' : ''));
@@ -110,8 +146,8 @@ export default function Login() {
             {step === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Email / Login</label>
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm placeholder-gray-400" placeholder="my@email.com" />
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Username or Email</label>
+                  <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm placeholder-gray-400" placeholder="admin or admin@skillstar.com" />
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
